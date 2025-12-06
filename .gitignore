@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Results 
+results/
+plots/
+logs/
+
+# Big data
+data/*
+
+# Temporary files
+tmp/
+*.tmp
+tmp_output.tsv

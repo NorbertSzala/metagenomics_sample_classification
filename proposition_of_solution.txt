@@ -1,0 +1,365 @@
+# główne parametry
+K = 21                # długość k-mera
+SKETCH_SIZE = 2000    # liczba najmniejszych hashów
+
+---------------------------------------------
+function compute_sketch(fasta_path):
+    minhash = empty max-heap (size limit = SKETCH_SIZE)
+
+    for each sequence in gzip_fasta(fasta_path):
+        for each kmer in sliding_window(sequence, K):
+            h = hash64(kmer)
+
+            if heap not full:
+                push(h)
+            else if h < heap.max():
+                pop_max()
+                push(h)
+
+    sketch = heap_to_sorted_list(minhash)
+    return sketch
+---------------------------------------------
+function train_model(training_metadata):
+    class_to_sketches = dict()
+
+    for entry in training_metadata:
+        fasta = entry.fasta_file
+        cls   = entry.class_name
+
+        sketch = compute_sketch(fasta)
+
+        append sketch to class_to_sketches[cls]
+
+    return class_to_sketches
+---------------------------------------------
+function jaccard_similarity(sketchA, sketchB):
+    # obie listy są posortowane
+    i = 0
+    j = 0
+    count = 0
+
+    while i < len(sketchA) and j < len(sketchB):
+        if sketchA[i] == sketchB[j]:
+            count += 1
+            i += 1
+            j += 1
+        else if sketchA[i] < sketchB[j]:
+            i += 1
+        else:
+            j += 1
+
+    return count / SKETCH_SIZE
+---------------------------------------------
+function classify(sketch, model):
+    scores = dict(class → 0)
+
+    for class in model:
+        total = 0
+        for train_sketch in model[class]:
+            total += jaccard_similarity(sketch, train_sketch)
+        
+        scores[class] = total / number_of_training_sketches(class)
+
+    return scores
+---------------------------------------------
+function main(training_tsv, testing_tsv, output_tsv):
+    training_meta = load_metadata(training_tsv)
+    testing_meta  = load_metadata(testing_tsv)
+
+    model = train_model(training_meta)
+
+    open output file
+    write header with class names
+
+    for test_entry in testing_meta:
+        test_sketch = compute_sketch(test_entry.fasta_file)
+        scores = classify(test_sketch, model)
+        write scores to TSV
+
+    close file
+
+
+---------------------------------------------
+AUC vs. procent danych treningowych
+AUC vs. rozmiar sketchu
+czas vs. sketch_size
+
+function plot_results(data):
+    # data = list of (parameter_value, mean_auc, std_auc)
+
+    prepare_figure()
+    plot_line(data.parameter_value, data.mean_auc)
+    fill_std_region()
+    label_axes()
+    save("plot_auc.png")
+
+
+
+####################################################
+#################### VALIDATION ####################
+####################################################
+
+function measure_ram(fun, args):
+    tracemalloc.start()
+    result = fun(args)
+    peak = tracemalloc.get_peak_memory()
+    tracemalloc.stop()
+    return (result, peak)
+
+
+function measure_time(fun, args):
+    t_start = current_time()
+    result  = fun(args)
+    t_end   = current_time()
+
+    total_time = t_end - t_start
+    reads = count_reads_from_args(args)
+    time_per_read = total_time / reads
+
+    return (result, total_time, time_per_read)
+
+
+---------------------------------------------
+function compare_outputs(fileA, fileB):
+    A = load_tsv(fileA)
+    B = load_tsv(fileB)
+
+    if header(A) != header(B):
+        return "ERROR: headers differ"
+
+    for each row_index:
+        if A[row_index].id != B[row_index].id:
+            return "ERROR: mismatch in dataset order"
+
+        for each column:
+            if not numeric(A[row][col]) or not numeric(B[row][col]):
+                return "ERROR: non-numeric value"
+
+    return "OK"
+
+
+---------------------------------------------
+function optimize_parameters(training_tsv, testing_tsv):
+
+    param_grid = list of parameter sets:
+        for k in [12,16,20,24,28]:
+            for sketch_size in [500, 1000, 2000, 5000]:
+                add (k, sketch_size)
+
+    best_score = -inf
+    best_params = None
+
+    for params in param_grid:
+        set_global_params(params)
+
+        run main(training_tsv, testing_tsv, "tmp_output.tsv")
+
+        auc = evaluate_AUC("tmp_output.tsv")
+
+        if auc > best_score:
+            best_score = auc
+            best_params = params
+
+    return best_params
+
+
+---------------------------------------------
+function write_log(message):
+    timestamp = now()
+    append_to_file("pipeline.log", "[" + timestamp + "] " + message)
+
+
+---------------------------------------------
+
+
+
+
+################################################################################
+############################ Propozycja podziału ról ###########################
+################################################################################
+
+OSOBA 1.
+
+[OBLICZENIA / PIPELINE]
+- compute_sketch
+- train_model
+- część main:
+    - load_metadata(training_tsv)
+    - budowa modelu: model = train_model(training_meta)
+
+[ANALIZA / KONTROLA / EKSPERYMENTY]
+- measure_time (mierzenie kluczowych funkcji: compute_sketch, train_model, main)
+- optimize_parameters:
+    - definicja param_grid (K, SKETCH_SIZE)
+    - pętla po parametrach
+    - wywołania main(training_tsv, testing_tsv, tmp_output)
+    - zapis wyników (parametry → AUC, czas itp.)
+- plot_results (AUC vs % danych, AUC vs SKETCH_SIZE, czas vs SKETCH_SIZE)
+
+
+
+OSOBA 2.
+
+[OBLICZENIA / PIPELINE]
+- jaccard_similarity
+- classify
+- część main:
+    - przetwarzanie testów:
+        - dla każdego test_entry: compute_sketch(test)
+        - scores = classify(test_sketch, model)
+        - zapis scores do output_tsv
+    - pełne domknięcie logiki main (otwieranie/zamykanie plików, nagłówki)
+
+[ANALIZA / KONTROLA / EKSPERYMENTY]
+- measure_ram (profilowanie RAM dla compute_sketch, train_model, classify, main)
+- compare_outputs (porównanie outputu z plikiem wzorcowym, walidacja struktury)
+- write_log / logs:
+    - projekt formatu logów
+    - logowanie etapów (start/koniec compute_sketch, train_model, classify, main)
+    - logowanie metryk (czas, RAM, najlepsze parametry itd.)
+
+
+
+
+
+
+
+
+
+                 ┌─────────────────────────────┐
+                 │         START PROGRAMU      │
+                 └───────────────┬─────────────┘
+                                 │
+                                 ▼
+                 ┌─────────────────────────────┐
+                 │   Wczytaj training.tsv      │
+                 │   Wczytaj testing.tsv       │
+                 └───────────────┬─────────────┘
+                                 │
+                                 ▼
+     ┌─────────────────────────────────────────────────────────┐
+     │                   BUDOWANIE MODELU                      │
+     └─────────────────────────────────────────┬───────────────┘
+                                               │
+                                               ▼
+                         ┌────────────────────────────┐
+                         │ compute_sketch() dla       │
+                         │ każdego pliku treningowego │
+                         └──────────────┬─────────────┘
+                                        │ sketch
+                                        ▼
+                         ┌────────────────────────────┐
+                         │ train_model():             │
+                         │ grupowanie sketchy wg klas │
+                         └────────────────────────────┘
+                                        │ model
+                                        ▼
+     ┌─────────────────────────────────────────────────────────┐
+     │                 KLASYFIKACJA DANYCH TESTOWYCH           │
+     └─────────────────────────────────────────┬───────────────┘
+                                               │
+                                               ▼
+                  ┌───────────────────────────────┐
+                  │ compute_sketch() dla testów   │
+                  └─────────────────────┬─────────┘
+                                        │ sketch_test
+                                        ▼
+                  ┌───────────────────────────────┐
+                  │ classify():                    │
+                  │  jaccard(test, każdy_szkic)    │
+                  │  → średnie wyniki per klasa    │
+                  └─────────────────────┬─────────┘
+                                        │ scores
+                                        ▼
+                  ┌───────────────────────────────┐
+                  │ Zapis wyników do output.tsv   │
+                  └───────────────────────────────┘
+
+
+──────────────────────────────────────────────────────────────────────────────
+                 BLOKI ANALITYCZNO-KONTROLNE (VALIDATION)
+──────────────────────────────────────────────────────────────────────────────
+
+         ┌─────────────────┐   ┌──────────────────┐   ┌──────────────────┐
+         │ measure_time()  │   │ measure_ram()     │   │ compare_outputs()│
+         └─────────────────┘   └──────────────────┘   └──────────────────┘
+                    │                   │                     │
+                    └────── monitorują poprawność i wydajność ──────────────┘
+
+
+──────────────────────────────────────────────────────────────────────────────
+                 BLOKI OPTYMALIZACJI (GRID SEARCH)
+──────────────────────────────────────────────────────────────────────────────
+
+                    ┌────────────────────────────┐
+                    │ optimize_parameters():      │
+                    │  - iteruje po K, SKETCH_SIZE│
+                    │  - odpala main()            │
+                    │  - liczy AUC                │
+                    │  - wybiera najlepszy zestaw │
+                    └────────────────────────────┘
+
+
+──────────────────────────────────────────────────────────────────────────────
+                 BLOKI DODATKOWE
+──────────────────────────────────────────────────────────────────────────────
+
+    ┌───────────────────────┐     ┌──────────────────────────┐
+    │ write_log()           │     │ plot_results()            │
+    │ (zapisywanie etapów)  │     │ (wykresy AUC/czas/sketch) │
+    └───────────────────────┘     └──────────────────────────┘
+
+
+──────────────────────────────────────────────────────────────────────────────
+                                     KONIEC
+──────────────────────────────────────────────────────────────────────────────
+
+
+
+################################################################################
+###################### Proponowana struktura na githubie #######################
+
+
+
+metasub-classifier/
+│
+├── src/
+│   ├── classifier.py            # główny skrypt wymagany w zadaniu
+│   ├── compute_sketch.py        # implementacja sketchowania
+│   ├── model.py                 # train_model + model utils
+│   ├── similarity.py            # jaccard + classify
+│   ├── utils_io.py              # load_metadata, TSV read/write
+│   ├── validation.py            # measure_time, measure_ram, compare_outputs
+│   ├── optimize.py              # grid search + param tuning
+│   ├── logs.py                  # write_log
+│   └── plotting.py              # plot_results
+│
+├── tests/
+│   ├── test_sketch.py           # test compute_sketch na krótkich sekwencjach
+│   ├── test_similarity.py       # test jaccard i classify
+│   ├── test_validation.py       # test compare_outputs
+│   └── test_io.py               # test load/save tsv
+│
+├── data/
+│   ├── small_train/             # przykładowe dane 1k zadające wzorzec
+│   ├── small_test/
+│   ├── training.tsv
+│   ├── testing.tsv
+│   └── expected_output.tsv
+│
+├── results/
+│   ├── runs/                    # wyniki kolejnych uruchomień (czas, RAM)
+│   ├── plots/                   # wykresy AUC/czas/sketch
+│   ├── optimized_params.json    # najlepsze parametry grid search
+│   └── output.tsv               # wynik programu
+│
+├── logs/
+│   ├── pipeline.log             # logi wykonywania
+│   └── errors.log
+│
+├── env/ (opcjonalnie, do użytku lokalnego)
+│   └── environment.yml
+│
+├── .gitignore
+├── README.md
+└── LICENSE
