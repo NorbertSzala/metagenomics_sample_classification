@@ -99,33 +99,33 @@ function plot_results(data):
 #################### VALIDATION ####################
 ####################################################
 
-function measure_ram(fun, args):
-    tracemalloc.start()
-    result = fun(args)
-    peak = tracemalloc.get_peak_memory()
-    tracemalloc.stop()
-    return (result, peak)
+    function measure_ram(fun, args):
+        tracemalloc.start()
+        result = fun(args)
+        peak = tracemalloc.get_peak_memory()
+        tracemalloc.stop()
+        return (result, peak)
 
 
-function measure_time(fun, args):
-    t_start = current_time()
-    result  = fun(args)
-    t_end   = current_time()
+    function measure_time(fun, args):
+        t_start = current_time()
+        result  = fun(args)
+        t_end   = current_time()
 
-    total_time = t_end - t_start
-    reads = count_reads_from_args(args)
-    time_per_read = total_time / reads
+        total_time = t_end - t_start
+        reads = count_reads_from_args(args)
+        time_per_read = total_time / reads
 
-    return (result, total_time, time_per_read)
+        return (result, total_time, time_per_read)
 
 
----------------------------------------------
-function compare_outputs(fileA, fileB):
-    A = load_tsv(fileA)
-    B = load_tsv(fileB)
+    ---------------------------------------------
+    function compare_outputs(fileA, fileB):
+        A = load_tsv(fileA)
+        B = load_tsv(fileB)
 
-    if header(A) != header(B):
-        return "ERROR: headers differ"
+        if header(A) != header(B):
+            return "ERROR: headers differ"
 
     for each row_index:
         if A[row_index].id != B[row_index].id:
