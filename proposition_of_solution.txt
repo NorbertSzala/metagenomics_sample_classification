@@ -341,11 +341,15 @@ metasub-classifier/
 │   └── test_io.py               # test load/save tsv
 │
 ├── data/
-│   ├── small_train/             # przykładowe dane 1k zadające wzorzec
-│   ├── small_test/
-│   ├── training.tsv
-│   ├── testing.tsv
-│   └── expected_output.tsv
+│   ├── test0/
+│   ├── train0/
+│   ├── evaluate.py
+|   ├── test0_data.tsv
+|   ├── test0_ground_truth.tsv
+|   ├── test1_data.tsv
+|   ├── test1_ground_truth.tsv
+│   ├── train0_data.tsv
+│   └── train1_data.tsv
 │
 ├── results/
 │   ├── runs/                    # wyniki kolejnych uruchomień (czas, RAM)
