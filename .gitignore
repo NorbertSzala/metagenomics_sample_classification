@@ -5,11 +5,6 @@ __pycache__/
 # VS Code
 .vscode/
 
-# Results 
-results/
-plots/
-logs/
-
 # Big data
 data/*
 
