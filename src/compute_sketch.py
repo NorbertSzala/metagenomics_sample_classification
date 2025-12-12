@@ -1,5 +1,5 @@
 # Norbert - implementacja sketchów
-
+# compute_sketch.py
 import gzip
 import mmh3
 import heapq
