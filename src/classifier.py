@@ -40,25 +40,36 @@ def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketc
         sketch_size (int, optional): number of sketches in single probe. Defaults to SKETCH_SIZE.
     """
     
+    stats = {}
+    
     # ~~~~~ 1. load training data ~~~~~
     training_data = load_metadata(training_tsv)
+    stats['load_train'] = measure_time(load_metadata, training_tsv)
     
     
-    # ~~~~~ 1. build training model ~~~~~
+    # ~~~~~ 2. build training model ~~~~~
+    model_data = train_model(training_data, k, sketch_size)
     # measure time
-    train_stats = measure_time(
+    model_stats = measure_time(
         train_model, training_data, k, sketch_size, n_units=len(training_data)
     )
-    
-    model = train_stats["result"]
-    
+    stats['model_data'] = model_stats
+    print(f"Training time: {model_stats['total_time']:.2f}s")
+    print(f"Time per sample: {model_stats['time_per_unit']:.4f}s")
+
+        
 
     # NOTE:
     # model: dict[class_name -> list[sketches]]
-    # No normalization here (by design)
+    # No normalization here. Normalization is must-have becouse some data have more records than others
     
     # ~~~~~ 3. load testing data ~~~~~
     testing_data = load_metadata(testing_tsv)
+    testing_stats = measure_time(
+        load_metadata, testing_tsv
+    )
+    print(f'Loading testing data time: {model_stats['testing_stats']:.2f}s')
+    
     # testing_data contains only fasta_file (class_geo_loc may be none)
     
     # ~~~~~ 4. classification (TODO) ~~~~~
@@ -70,6 +81,7 @@ def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketc
     #
     # results = classify_all(testing_meta, model, k, sketch_size)
 
+    stats['classify'] = None
     raise NotImplementedError(
         "Classification step not implemented yet "
         "(classify_sample / classify_all missing)"
@@ -78,7 +90,7 @@ def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketc
     # ~~~~~ 5. write output (TODO) ~~~~~
     # write_output(results, output_tsv)
 
-
+    return stats
 
 
 if __name__ == "__main__":
