@@ -12,3 +12,6 @@ data/*
 tmp/
 *.tmp
 tmp_output.tsv
+
+./project2.pdf
+./proposition_of_solution.txt
