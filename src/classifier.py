@@ -21,7 +21,6 @@ SKETCH_SIZE = 2000
 ############## MAIN ################
 ####################################
 
-model = train_model(training_data, K, SKETCH_SIZE)
 
 
 def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketch_size:int = SKETCH_SIZE):
@@ -35,7 +34,7 @@ def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketc
 
     Args:
         training_tsv (str): path to training tsv
-        testing_tsv (str): path to testing tsv
+        testing_tsv (str): path to  testing tsv
         output_tsv (str): path to output
         k (int, optional): Kmer size. Defaults to K (21).
         sketch_size (int, optional): number of sketches in single probe. Defaults to SKETCH_SIZE.
@@ -51,7 +50,7 @@ def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketc
         train_model, training_data, k, sketch_size, n_units=len(training_data)
     )
     
-    model = train_stats["results"]
+    model = train_stats["result"]
     
 
     # NOTE:
@@ -81,4 +80,21 @@ def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketc
 
 
 
-# TODO: write if __name__ = .. with argument parser
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("training_tsv")
+    parser.add_argument("testing_tsv")
+    parser.add_argument('output_tsv')
+    parser.add_argument('--k', type=int, default = K) #optionally, delete it later. Just for tests
+    parser.add_argument('--sketch_size', type=int, default=SKETCH_SIZE) #optionally, delete it later. Just to 
+    
+    args = parser.parse_args()
+    
+    main(
+        args.training_tsv,
+        args.testing_tsv,
+        args.output_tsv,
+        k=args.k,
+        sketch_size=args.sketch_size
+    )
