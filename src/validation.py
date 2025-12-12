@@ -1,7 +1,5 @@
 #validation
 
-<<<<<<< Updated upstream
-=======
 # Norbert: # measure_time
 
 # Kasia: Measure RAM and compare outputs
@@ -34,4 +32,3 @@ def measure_time(func: Callable, *args, n_units: int | None=None, **kwargs ):
         time_per_unit = total_time/n_units
         
     return {'result':result, 'total_time': total_time, 'time_per_unit':time_per_unit}
->>>>>>> Stashed changes
