@@ -6,7 +6,7 @@ import heapq
 import numpy as np
 from Bio.Seq import Seq
 
-def compute_sketch(fasta_path, k=21, sketch_size=2000):
+def compute_sketch(fasta_path, k=21, sketch_size=2000, max_heap=None):
     """
     Compute a MinHash sketch from a gzipped FASTA file.
 
@@ -30,7 +30,8 @@ def compute_sketch(fasta_path, k=21, sketch_size=2000):
     """
     
     # in python there is only min_heap, thats we will inverse numbers, 1 -> -1
-    max_heap = []
+    if max_heap == None:
+        max_heap = []
     
     # ----- Fasta .gz reader -----
     with gzip.open(fasta_path, 'rt') as f:
@@ -55,9 +56,9 @@ def compute_sketch(fasta_path, k=21, sketch_size=2000):
             process_sequence("".join(seq), k, sketch_size, max_heap)
     
     # convert MAX-HEAP to normal values (positive)
-    sketch = sorted([-h for h in max_heap])
+    # sketch = sorted([-h for h in max_heap])
     
-    return np.array(sketch, dtype=np.uint64)
+    return max_heap
     
 
 
@@ -85,7 +86,8 @@ def process_sequence(seq:str, k:int, sketch_size:int, max_heap:list):
         kmer = Seq(seq[i:i + k])
         rc = kmer.reverse_complement()
         canonical = min(kmer, rc)
-        h, _ = mmh3.hash64(canonical, signed = False)
+        canonical_str = str(canonical)
+        h, _ = mmh3.hash64(canonical_str, signed = False)
         
         # if heap is nto full, add last hash (negative hash, because its max heap)
         if len(max_heap) < sketch_size:

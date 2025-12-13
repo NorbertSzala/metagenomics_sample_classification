@@ -2,12 +2,14 @@
 # classifier.py
 
 import argparse
+import sys
+import numpy as np
 
 from compute_sketch import compute_sketch
 from model import train_model
 from utils_io import load_metadata
-from validation import measure_time
-
+from validation import measure_time, measure_ram
+from similarity import classify_all
 
 ####################################
 ########## SET PARAMETERS ##########
@@ -20,7 +22,6 @@ SKETCH_SIZE = 2000
 ####################################
 ############## MAIN ################
 ####################################
-
 
 
 def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketch_size:int = SKETCH_SIZE):
@@ -41,42 +42,64 @@ def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketc
     """
     
     stats = {}
+
+    initial_ram = measure_ram()
+    print(f"Initial RAM usage: {initial_ram:.2f} MB")
+
     
     # ~~~~~ 1. load training data ~~~~~
     training_data = load_metadata(training_tsv)
-    stats['load_train'] = measure_time(load_metadata, training_tsv)
-    
+    # stats['load_train'] = measure_time(load_metadata, training_tsv)
     
     # ~~~~~ 2. build training model ~~~~~
     model_data = train_model(training_data, k, sketch_size)
+
     # measure time
-    model_stats = measure_time(
-        train_model, training_data, k, sketch_size, n_units=len(training_data)
-    )
-    stats['model_data'] = model_stats
-    print(f"Training time: {model_stats['total_time']:.2f}s")
-    print(f"Time per sample: {model_stats['time_per_unit']:.4f}s")
-
-        
-
-    # NOTE:
-    # model: dict[class_name -> list[sketches]]
-    # No normalization here. Normalization is must-have becouse some data have more records than others
+    # model_stats = measure_time(
+    #     train_model, training_data, k, sketch_size, n_units=len(training_data)
+    # )
+    # stats['model_data'] = model_stats
+    # print(f"Training time: {model_stats['total_time']:.2f}s")
+    # print(f"Time per sample: {model_stats['time_per_unit']:.4f}s")
+    
+    current_ram = measure_ram()
+    print(f"RAM usage after training: {current_ram:.2f} MB")
     
     # ~~~~~ 3. load testing data ~~~~~
     testing_data = load_metadata(testing_tsv)
-    testing_stats = measure_time(
+
+    test_sketchs = {}
+
+    test_stats = measure_time(
         load_metadata, testing_tsv
     )
-    print(f'Loading testing data time: {model_stats['testing_stats']:.2f}s')
+    # print(f'Loading testing data time: {model_stats['testing_stats']:.2f}s')
     
     # testing_data contains only fasta_file (class_geo_loc may be none)
     
     # ~~~~~ 4. classification (TODO) ~~~~~
     # TODO:
     # for each test sample:
-    #   - compute sketch
-    #   - compare to model
+
+    for entry in testing_data:
+        fasta_path = entry.fasta_file
+        sketch = compute_sketch(fasta_path, k, sketch_size)
+        sketch = sorted([-h for h in sketch])
+
+        test_sketchs[fasta_path] = {"sketch": np.array(sketch, dtype=np.uint64)}
+        
+    print(test_sketchs)
+
+    print(model_data)
+
+    # results, classify_time = measure_time(
+    #     classify_all, test_sketchs, model_data)
+
+    # print(results, classify_time)
+
+    return 
+    #   - compute sketch +
+    #   - compare to model +-
     #   - compute score per class
     #
     # results = classify_all(testing_meta, model, k, sketch_size)
@@ -94,6 +117,16 @@ def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketc
 
 
 if __name__ == "__main__":
+#######
+    if len(sys.argv) != 4:
+        print("Usage: python3 classifier.py training_data.tsv testing_data.tsv output.tsv")
+        sys.exit(1)
+    
+    training_tsv = sys.argv[1]
+    testing_tsv = sys.argv[2]
+    output_tsv = sys.argv[3]
+######
+
     parser = argparse.ArgumentParser()
     parser.add_argument("training_tsv")
     parser.add_argument("testing_tsv")

@@ -10,6 +10,7 @@ That model represents equally each class and is very very smaller than original 
 
 '''
 
+import numpy as np
 from compute_sketch import compute_sketch
 
 
@@ -32,13 +33,27 @@ def train_model(metadata:list, k:int=21, sketch_size:int=2000)-> dict:
         cls = entry.class_name
         fasta_path = entry.fasta_file
         
-        #compute sketch for the dataset
-        sketch = compute_sketch(fasta_path, k, sketch_size)
-        
+        #get sketch for class or initiate list if there is no sketch
+        current_max_heap = class_to_sketches.get(cls, [])
+        # update the sketch
+        updated_max_heap = compute_sketch(fasta_path, k, sketch_size, current_max_heap)
+        # save current
+        class_to_sketches[cls] = updated_max_heap
+
         # initialise class if needed
         if cls not in class_to_sketches:
             class_to_sketches[cls] = []
+            sketch = compute_sketch(fasta_path, k, sketch_size)
             
-        class_to_sketches[cls].append(sketch)
+            class_to_sketches[cls].append(sketch)
+
+        else:
+            sketch = compute_sketch(fasta_path, k, sketch_size, class_to_sketches[cls])
+            class_to_sketches[cls] = sketch
+    
+    for cls_, max_heap in class_to_sketches.items():
+        sketch = sorted([-h for h in max_heap])
+        class_to_sketches[cls_] = np.array(sketch, dtype=np.uint64)
+     
         
     return class_to_sketches
