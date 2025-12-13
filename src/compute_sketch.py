@@ -3,6 +3,8 @@
 import gzip
 import mmh3
 import heapq
+import numpy as np
+from Bio.Seq import Seq
 
 def compute_sketch(fasta_path, k=21, sketch_size=2000):
     """
@@ -55,7 +57,7 @@ def compute_sketch(fasta_path, k=21, sketch_size=2000):
     # convert MAX-HEAP to normal values (positive)
     sketch = sorted([-h for h in max_heap])
     
-    return sketch
+    return np.array(sketch, dtype=np.uint64)
     
 
 
@@ -80,8 +82,10 @@ def process_sequence(seq:str, k:int, sketch_size:int, max_heap:list):
     
     # fast generation k-mers. Slicing + iterations 
     for i in range(n-k+1):
-        kmer = seq[i:i+k]
-        h, _ = mmh3.hash64(kmer, signed = False)
+        kmer = Seq(seq[i:i + k])
+        rc = kmer.reverse_complement()
+        canonical = min(kmer, rc)
+        h, _ = mmh3.hash64(canonical, signed = False)
         
         # if heap is nto full, add last hash (negative hash, because its max heap)
         if len(max_heap) < sketch_size:
