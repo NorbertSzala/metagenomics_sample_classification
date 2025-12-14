@@ -46,7 +46,7 @@ def write_output_tsv(scores: dict, output_path: str):
     with open(output_path, 'w', newline='') as f:
         writer = csv.writer(f, delimiter='\t')
 
-        header = ['fats_file'] + sorted_classes
+        header = ['fasta_file'] + sorted_classes
         writer.writerow(header)
 
         for sample_name, scores_dict in scores.items():
