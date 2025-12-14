@@ -7,7 +7,7 @@ import numpy as np
 
 from compute_sketch import compute_sketch
 from model import train_model
-from utils_io import load_metadata
+from utils_io import load_metadata, write_output_tsv
 from validation import measure_time, measure_ram
 from similarity import classify_all
 
@@ -45,12 +45,10 @@ def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketc
 
     initial_ram = measure_ram()
     print(f"Initial RAM usage: {initial_ram:.2f} MB")
-
     
     # ~~~~~ 1. load training data ~~~~~
     training_data = load_metadata(training_tsv)
     # stats['load_train'] = measure_time(load_metadata, training_tsv)
-    
     # ~~~~~ 2. build training model ~~~~~
     model_data = train_model(training_data, k, sketch_size)
 
@@ -73,13 +71,8 @@ def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketc
     test_stats = measure_time(
         load_metadata, testing_tsv
     )
-    # print(f'Loading testing data time: {model_stats['testing_stats']:.2f}s')
-    
-    # testing_data contains only fasta_file (class_geo_loc may be none)
-    
-    # ~~~~~ 4. classification (TODO) ~~~~~
-    # TODO:
-    # for each test sample:
+ 
+    # ~~~~~ 4. classification  ~~~~~
 
     for entry in testing_data:
         fasta_path = entry.fasta_file
@@ -88,51 +81,25 @@ def main(training_tsv: str, testing_tsv: str, output_tsv: str, k: int = K, sketc
 
         test_sketchs[fasta_path] = {"sketch": np.array(sketch, dtype=np.uint64)}
         
-    print(test_sketchs)
-
-    print(model_data)
+    scores = classify_all(test_sketchs, model_data)
 
     # results, classify_time = measure_time(
     #     classify_all, test_sketchs, model_data)
 
-    # print(results, classify_time)
-
-    return 
-    #   - compute sketch +
-    #   - compare to model +-
-    #   - compute score per class
-    #
-    # results = classify_all(testing_meta, model, k, sketch_size)
-
-    stats['classify'] = None
-    raise NotImplementedError(
-        "Classification step not implemented yet "
-        "(classify_sample / classify_all missing)"
-    )
-
-    # ~~~~~ 5. write output (TODO) ~~~~~
-    # write_output(results, output_tsv)
+    # ~~~~~ 5. write output  ~~~~~
+    write_output_tsv(scores, output_tsv)
 
     return stats
 
 
 if __name__ == "__main__":
-#######
-    if len(sys.argv) != 4:
-        print("Usage: python3 classifier.py training_data.tsv testing_data.tsv output.tsv")
-        sys.exit(1)
-    
-    training_tsv = sys.argv[1]
-    testing_tsv = sys.argv[2]
-    output_tsv = sys.argv[3]
-######
 
     parser = argparse.ArgumentParser()
     parser.add_argument("training_tsv")
     parser.add_argument("testing_tsv")
     parser.add_argument('output_tsv')
     parser.add_argument('--k', type=int, default = K) #optionally, delete it later. Just for tests
-    parser.add_argument('--sketch_size', type=int, default=SKETCH_SIZE) #optionally, delete it later. Just to 
+    parser.add_argument('--sketch_size', type=int, default=SKETCH_SIZE) #optionally, delete it later. 
     
     args = parser.parse_args()
     

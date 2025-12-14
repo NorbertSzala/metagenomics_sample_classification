@@ -9,10 +9,9 @@ def jaccard_similarity(sketch1:np.ndarray, sketch2: np.ndarray):
     if len(sketch1) != len(sketch2):
         raise ValueError("Sketches must have the same size")
 
-    matches = np.sum(sketch1 == sketch2)
+    print(len(set(sketch1) & set(sketch2)) / len(sketch1))
 
-    print(matches / len(sketch1))
-    return matches / len(sketch1)
+    return len(set(sketch1) & set(sketch2)) / len(sketch1)
 
 
 def classify(test_sketch: np.ndarray, training_sketches: dict):
@@ -22,6 +21,7 @@ def classify(test_sketch: np.ndarray, training_sketches: dict):
     similarities = []
     
     for label, train_sketch in training_sketches.items():
+        print(label)
         similarity = jaccard_similarity(test_sketch, train_sketch)
         similarities.append((label, similarity))
     
@@ -38,7 +38,8 @@ def classify_all(test_sketchs: np.ndarray, training_sketches: dict):
 
     for fasta_name, values in test_sketchs.items():
         similarity = classify(values['sketch'], training_sketches)
-        scores[fasta_name] = similarity
+        similarity_dict = dict(similarity)
+        scores[fasta_name] = similarity_dict
 
     
     return scores
