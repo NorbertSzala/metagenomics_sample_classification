@@ -37,3 +37,26 @@ def load_metadata(tsv_path: str)-> list[metadataEntry]:
             
             metadata.append(entry)
     return metadata
+
+def write_output_tsv(scores: dict, output_path: str):
+
+    class_names = set(key for inner_dict in scores.values() for key in inner_dict.keys())
+    sorted_classes = sorted(class_names)
+
+    with open(output_path, 'w', newline='') as f:
+        writer = csv.writer(f, delimiter='\t')
+
+        header = ['fats_file'] + sorted_classes
+        writer.writerow(header)
+
+        for sample_name, scores_dict in scores.items():
+            row = [sample_name]
+
+            for class_name in sorted_classes:
+
+                score = scores_dict[class_name]
+                
+                row.append(score)
+
+            writer.writerow(row)
+        
