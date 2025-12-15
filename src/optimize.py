@@ -118,8 +118,8 @@ if __name__ == "__main__":
     ground_truth = "data/test0_ground_truth.tsv"
     
     param_grid = {
-        "K": np.arange(6, 40, 2),
-        "sketch_size": np.arange(500, 3000, 150)
+        "K": np.arange(6, 40, 4),
+        "sketch_size": np.arange(500, 3000, 300)
     }
 
     optimize_parameters(
