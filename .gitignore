@@ -5,17 +5,20 @@ __pycache__/
 # VS Code
 .vscode/
 
-# Big data
-data/*
+# Data (large files)
+data/
 
-# Temporary files
+# Logs
+logs/
+*.log
+
+# Results and outputs
+results/
+tmp.tsv
 tmp/
 *.tmp
 tmp_output.tsv
 
-./project2.pdf
-./proposition_of_solution.txt
-
-./logs
-
-*.logs
+# Documents (local only)
+project2.pdf
+proposition_of_solution.txt
