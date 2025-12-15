@@ -43,6 +43,5 @@ def train_model(metadata:list, k:int=21, sketch_size:int=2000)-> dict:
     for cls_, max_heap in class_to_sketches.items():
         sketch = sorted([-h for h in max_heap])
         class_to_sketches[cls_] = np.array(sketch, dtype=np.uint64)
-     
         
     return class_to_sketches

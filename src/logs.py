@@ -55,7 +55,7 @@ class RunLogger:
         """
         self.end_time = time.perf_counter()
         self._write_log()
-
+        
     def _write_log(self):
         """
         Write timing and RAM usage statistics to a log file.
@@ -82,3 +82,11 @@ class RunLogger:
                 f.write(f"Peak RAM [MB]: {self.peak_ram:.2f}\n")
             else:
                 f.write("RAM measurement: psutil not available\n")
+
+    def get_stats(self):
+        """Return total time and peak RAM."""
+        total_time = self.end_time - self.start_time
+        return {
+            "total_time": total_time,
+            "peak_ram": self.peak_ram
+        }
