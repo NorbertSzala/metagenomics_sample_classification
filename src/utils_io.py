@@ -2,6 +2,7 @@
 # Utils_io
 
 from dataclasses import dataclass
+from pathlib import Path
 import csv
 
 @dataclass
@@ -23,6 +24,10 @@ def load_metadata(tsv_path: str)-> list[metadataEntry]:
             Entry(fasta_fiele="path_data1.tsv", geo_loc_name=Piastow)
         ]
     """
+    # Set correct paths for undirect paths from tsv file
+    tsv_path = Path(tsv_path)
+    base_dir = tsv_path.parent
+    
     
     metadata=[]
     with open(tsv_path, newline="") as f:
@@ -30,8 +35,12 @@ def load_metadata(tsv_path: str)-> list[metadataEntry]:
         reader = csv.DictReader(f, delimiter='\t')
         
         for row in reader:
+            fasta_path = Path(row['fasta_file'])
+            if not fasta_path.is_absolute():
+                fasta_path = base_dir / fasta_path
+                
             entry = metadataEntry(
-                fasta_file=row['fasta_file'],
+                fasta_file=fasta_path,
                 class_name=row.get("geo_loc_name")
             )
             
