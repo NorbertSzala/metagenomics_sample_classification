@@ -16,8 +16,8 @@ from logs import RunLogger
 ########## SET PARAMETERS ##########
 ####################################
 
-K = 21
-SKETCH_SIZE = 2000
+K = 38
+SKETCH_SIZE = 4100
 
 
 ####################################

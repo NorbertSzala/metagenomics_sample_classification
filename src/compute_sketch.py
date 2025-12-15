@@ -85,7 +85,8 @@ def process_sequence(seq:str, k:int, sketch_size:int, max_heap:list):
     for i in range(n-k+1):
         kmer = Seq(seq[i:i + k])
         rc = kmer.reverse_complement()
-        # Po co reverse complement???
+        
+        # Use the canonical k-mer so that a k-mer and its reverse complement are treated as the same sequence, regardless of strand direction.
         canonical = min(kmer, rc)
         canonical_str = str(canonical)
         h, _ = mmh3.hash64(canonical_str, signed = False)

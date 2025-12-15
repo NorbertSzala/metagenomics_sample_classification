@@ -67,7 +67,7 @@ def evaluate_downsampled_test(
     test_tsv: str,
     ground_truth_tsv: str,
     fractions=np.arange(0.0, 1.1, 0.1),
-    n_repeats: int = 5,
+    n_repeats: int = 10,
     output_dir: str = "results/downsampling_test"
 ):
     """
