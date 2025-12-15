@@ -1,5 +1,5 @@
 import random
-import csv
+import csv, sys
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -9,9 +9,9 @@ from main import main
 from plotting import plot_roc_curves
 
 
-def downsample_test_tsv(
+def downsample_tsv(
     
-    test_tsv: str,
+    tsv_path: str,
     fraction: float,
     output_tsv: str
 ):
@@ -30,10 +30,10 @@ def downsample_test_tsv(
         output_tsv (str): Path where thenew downsampled TSV will be written.
     """
 
-    test_tsv = Path(test_tsv).resolve()
-    base_dir = test_tsv.parent  
+    tsv_path = Path(tsv_path).resolve()
+    base_dir = tsv_path.parent  
 
-    with open(test_tsv) as f:
+    with open(tsv_path) as f:
         reader = list(csv.DictReader(f, delimiter="\t"))
 
     # number of samples to keep after downsampling
@@ -61,11 +61,12 @@ def downsample_test_tsv(
 
 
 
-def evaluate_downsampled_test(
+def evaluate_downsampled(
     
     training_tsv: str,
-    test_tsv: str,
+    testing_tsv: str,
     ground_truth_tsv: str,
+    data_to_downsize: str,
     fractions=np.arange(0.0, 1.1, 0.1),
     n_repeats: int = 5,
     output_dir: str = "results/downsampling_test"
@@ -104,23 +105,20 @@ def evaluate_downsampled_test(
 
             for rep in range(n_repeats):
                 # temporary files
-                tmp_test = output_dir / f"test_{int(frac*100)}pct_rep{rep}.tsv"
+                tmp_path = output_dir / f"{data_to_downsize}_{int(frac*100)}pct_rep{rep}.tsv"
                 pred_tsv = output_dir / f"pred_{int(frac*100)}pct_rep{rep}.tsv"
+                
 
                 # downsampled test TSV
-                downsample_test_tsv(
-                    test_tsv=test_tsv,
-                    fraction=frac,
-                    output_tsv=tmp_test
-                )
-                # run the full classification pipeline - on the same training data
-                main(
-                    training_tsv,
-                    str(tmp_test),
-                    str(pred_tsv),
-                    ground_truth_tsv=None
-                )
+                # and run the full classification pipeline - on the same training data
+                if data_to_downsize == "test":
+                    downsample_tsv(testing_tsv, frac, tmp_path)
+                    main(training_tsv, str(tmp_path), str(pred_tsv), ground_truth_tsv=None)
 
+                else: 
+                    downsample_tsv(training_tsv, frac, tmp_path)
+                    main(str(tmp_path), testing_tsv, str(pred_tsv), ground_truth_tsv=None)
+  
                 # compute mean AUC. doesnt make plot
                 mean_auc = plot_roc_curves(
                     predictions_file=str(pred_tsv),
@@ -146,7 +144,7 @@ def evaluate_downsampled_test(
     return summary
 
 
-def plot_downsampling_results(summary, output_png="results/downsampling_test_auc.png"):
+def plot_downsampling_results(summary, data_to_downsize, output_png):
     """
     Plot the effect of test set downsampling on model performance.
 
@@ -157,7 +155,7 @@ def plot_downsampling_results(summary, output_png="results/downsampling_test_auc
         summary (dict): Output from evaluate_downsampled_test().
         output_png (str): Path to the output PNG file.
     """
-    
+  
     fracs = sorted(summary.keys())
     means = [summary[f]["mean"] for f in fracs]
     stds = [summary[f]["std"] for f in fracs]
@@ -171,9 +169,9 @@ def plot_downsampling_results(summary, output_png="results/downsampling_test_auc
         capsize=5
     )
 
-    plt.xlabel("Test data used (%)")
+    plt.xlabel(f"{data_to_downsize} data used (%)")
     plt.ylabel("Mean AUC")
-    plt.title("Downsampling test set: mean AUC ± SD")
+    plt.title(f"Downsampling {data_to_downsize} set: mean AUC ± SD")
     plt.grid(True)
 
     plt.tight_layout()
@@ -183,14 +181,23 @@ def plot_downsampling_results(summary, output_png="results/downsampling_test_auc
     print(f"Downsampling plot saved to {output_png}")
 
 
-
 if __name__ == "__main__":
-    summary = evaluate_downsampled_test(
-        training_tsv="data/train0_data.tsv",
-        test_tsv="data/test0_data.tsv",
-        ground_truth_tsv="data/test0_ground_truth.tsv",
-        fractions=[0.1, 0.2, 0.4, 0.6, 0.8, 1.0],
-        n_repeats=5
-    )
 
-    plot_downsampling_results(summary)
+    options = ['train', 'test']
+
+    if len(sys.argv) != 2 or sys.argv[1].lower() not in options:
+        print("Usage: python downsampling.py data_to_downsize(print: train or test)", file=sys.stderr)
+        sys.exit(1)
+
+    option = sys.argv[1].lower()
+
+    summary = evaluate_downsampled(
+        training_tsv = "data/train0_data.tsv",
+        test_tsv = "data/test0_data.tsv",
+        ground_truth_tsv = "data/test0_ground_truth.tsv",
+        data_to_downsize = option,
+        fractions = [0.1, 0.2, 0.4, 0.6, 0.8, 1.0],
+        n_repeats = 5
+    )
+    output_png = f"results/downsampling_{option}_auc.png"
+    plot_downsampling_results(summary, option, output_png)
