@@ -7,7 +7,7 @@ def plot_roc_curves(predictions_file, ground_truth_file, output_file='roc_curves
     Plot ROC curves for all classes.
     """
     import csv
-    
+    print(f'running plot_roc_curves')
     # Load data
     predictions = {}
     classes = []
@@ -66,10 +66,11 @@ def plot_roc_curves(predictions_file, ground_truth_file, output_file='roc_curves
     
     # Save
     plt.tight_layout()
+
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    plt.close()
     print(f"ROC curves saved to {output_file}")
-    
-    plt.show()
+
 
 
 def calculate_roc_curve(y_true, y_scores):
@@ -110,17 +111,3 @@ def calculate_roc_curve(y_true, y_scores):
     
     return fpr, tpr, auc
 
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("prediction_tsv")
-    parser.add_argument("ground_truth_tsv")
-    parser.add_argument('output_name', type=int, default = 'roc_curves.png')
-
-    args = parser.parse_args()
-    
-    plot_roc_curves(
-        args.prediction_tsv,
-        args.ground_truth_tsv,
-        args.output_name
-    )
