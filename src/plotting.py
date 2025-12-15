@@ -1,27 +1,23 @@
-def plot_roc_curves(predictions_file, ground_truth_file, output_file='roc_curves.png'):
+def plot_roc_curves(predictions_file, ground_truth_file, output_file=None):
     import csv
     import numpy as np
     import matplotlib.pyplot as plt
     from pathlib import Path
     import argparse
     import numpy as np
-    print("=== DEBUG: LOADING DATA ===")
-    print(f"Predictions file: {predictions_file}")
-    print(f"Ground truth file: {ground_truth_file}")
+
 
     # ---- Load predictions ----
     predictions = {}
 
     with open(predictions_file) as f:
         reader = csv.DictReader(f, delimiter='\t')
-        print("Prediction columns:", reader.fieldnames)
 
         if "fasta_file" not in reader.fieldnames:
             print("ERROR: 'fasta_file' column missing in predictions TSV")
             return
 
         classes = [c for c in reader.fieldnames if c != "fasta_file"]
-        print(f"Detected classes ({len(classes)}):", classes)
 
         for row in reader:
             sample = Path(row["fasta_file"]).name
@@ -30,7 +26,6 @@ def plot_roc_curves(predictions_file, ground_truth_file, output_file='roc_curves
             except ValueError:
                 print(f"WARNING: non-numeric score in row: {row}")
     
-    print(f"Loaded {len(predictions)} prediction samples")
 
     # ---- Load ground truth ----
     ground_truth = {}
@@ -48,23 +43,17 @@ def plot_roc_curves(predictions_file, ground_truth_file, output_file='roc_curves
             ground_truth[sample] = row["geo_loc_name"]
 
 
-    print(f"Loaded {len(ground_truth)} ground truth samples")
 
     # ---- Check overlap ----
     common = set(predictions) & set(ground_truth)
-    print(f"Samples in common: {len(common)}")
 
     if len(common) == 0:
-        print("ERROR: No overlapping sample names between predictions and ground truth!")
-        print("Example prediction keys:", list(predictions.keys())[:3])
-        print("Example ground truth keys:", list(ground_truth.keys())[:3])
-        return
+        print("ERROR: No overlapping sample names between predictions and ground truth")
 
     # ---- Plot ----
     plt.figure(figsize=(12, 10))
     all_aucs = []
 
-    print("\n=== DEBUG: PER-CLASS ANALYSIS ===")
 
     for class_name in sorted(classes):
         y_true = []
@@ -80,19 +69,12 @@ def plot_roc_curves(predictions_file, ground_truth_file, output_file='roc_curves
         n_pos = np.sum(y_true == 1)
         n_neg = np.sum(y_true == 0)
 
-        print(f"\nClass: {class_name}")
-        print(f"  positives: {n_pos}, negatives: {n_neg}")
-        print(f"  score range: min={y_scores.min():.4f}, max={y_scores.max():.4f}")
-        print(f"  score mean: {y_scores.mean():.4f}")
-
         if n_pos == 0 or n_neg == 0:
             print("  WARNING: ROC undefined (no positives or no negatives)")
             continue
 
         fpr, tpr, auc = calculate_roc_curve(y_true, y_scores)
         all_aucs.append(auc)
-
-        print(f"  AUC: {auc:.4f}")
 
         plt.plot(fpr, tpr, label=f"{class_name} (AUC={auc:.3f})")
 
@@ -110,11 +92,27 @@ def plot_roc_curves(predictions_file, ground_truth_file, output_file='roc_curves
     plt.legend(fontsize=8)
     plt.grid(True)
 
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=300)
-    plt.close()
+    if output_file is not None:
+        plt.tight_layout()
+        plt.savefig(output_file, dpi=300)
+        plt.close()
+    else:
+        plt.close()
 
-    print(f"\nROC curves saved to: {output_file}")
+
+    if output_file is not None:
+        print(f"\nROC curves saved to: {output_file}")
+
+    
+    
+    mean_auc = float(np.mean(all_aucs))
+
+    if output_file is not None:
+        plt.tight_layout()
+        plt.savefig(output_file, dpi=300)
+        plt.close()
+
+    return mean_auc
 
 
 
@@ -157,18 +155,3 @@ def calculate_roc_curve(y_true, y_scores):
         auc += width * height
     
     return fpr, tpr, auc
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("prediction_tsv")
-    parser.add_argument("ground_truth_tsv")
-    parser.add_argument('output_name', type=int, default = 'roc_curves.png')
-
-    args = parser.parse_args()
-    
-    plot_roc_curves(
-        args.prediction_tsv,
-        args.ground_truth_tsv,
-        args.output_name
-    )
