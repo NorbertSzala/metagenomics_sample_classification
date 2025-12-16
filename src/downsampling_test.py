@@ -189,7 +189,7 @@ if __name__ == "__main__":
         training_tsv="data/train0_data.tsv",
         test_tsv="data/test0_data.tsv",
         ground_truth_tsv="data/test0_ground_truth.tsv",
-        fractions=[0.1, 0.2, 0.4, 0.6, 0.8, 1.0],
+        fractions=np.arange(0.1, 1.1, 0.1),
         n_repeats=5
     )
 
