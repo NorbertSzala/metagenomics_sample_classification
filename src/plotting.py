@@ -1,12 +1,21 @@
+import csv
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
 def plot_roc_curves(predictions_file, ground_truth_file, output_file=None):
-    import csv
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from pathlib import Path
-    import argparse
-    import numpy as np
-
-
+    """
+    Plot ROC curves and calculate mean AUC.
+    
+    Args:
+        predictions_file: Path to predictions TSV
+        ground_truth_file: Path to ground truth TSV
+        output_file: Path to save plot (if None, don't save)
+        
+    Returns:
+        mean_auc: Mean AUC-ROC score (or None if error)
+    """
+    
     # ---- Load predictions ----
     predictions = {}
 
@@ -15,7 +24,7 @@ def plot_roc_curves(predictions_file, ground_truth_file, output_file=None):
 
         if "fasta_file" not in reader.fieldnames:
             print("ERROR: 'fasta_file' column missing in predictions TSV")
-            return
+            return None
 
         classes = [c for c in reader.fieldnames if c != "fasta_file"]
 
@@ -25,24 +34,21 @@ def plot_roc_curves(predictions_file, ground_truth_file, output_file=None):
                 predictions[sample] = {cls: float(row[cls]) for cls in classes}
             except ValueError:
                 print(f"WARNING: non-numeric score in row: {row}")
-    
+                continue
 
     # ---- Load ground truth ----
     ground_truth = {}
 
     with open(ground_truth_file) as f:
         reader = csv.DictReader(f, delimiter='\t')
-        print("Ground truth columns:", reader.fieldnames)
 
         if "fasta_file" not in reader.fieldnames or "geo_loc_name" not in reader.fieldnames:
             print("ERROR: ground truth TSV must contain 'fasta_file' and 'geo_loc_name'")
-            return
+            return None
 
         for row in reader:
             sample = Path(row["fasta_file"]).name
             ground_truth[sample] = row["geo_loc_name"]
-
-
 
     # ---- Check overlap ----
     common = set(predictions) & set(ground_truth)
@@ -50,10 +56,9 @@ def plot_roc_curves(predictions_file, ground_truth_file, output_file=None):
     if len(common) == 0:
         print("ERROR: No overlapping sample names between predictions and ground truth")
 
-    # ---- Plot ----
+    # ---- Calculate ROC for each class ----
     plt.figure(figsize=(12, 10))
     all_aucs = []
-
 
     for class_name in sorted(classes):
         y_true = []
@@ -70,55 +75,35 @@ def plot_roc_curves(predictions_file, ground_truth_file, output_file=None):
         n_neg = np.sum(y_true == 0)
 
         if n_pos == 0 or n_neg == 0:
-            print("  WARNING: ROC undefined (no positives or no negatives)")
             continue
 
         fpr, tpr, auc = calculate_roc_curve(y_true, y_scores)
         all_aucs.append(auc)
+        
+        plt.plot(fpr, tpr, label=f"{class_name} (AUC={auc:.3f})", linewidth=2)
 
-        plt.plot(fpr, tpr, label=f"{class_name} (AUC={auc:.3f})")
-
-    if len(all_aucs) == 0:
-        print("ERROR: No valid ROC curves could be computed")
-        return
-
-    print(f"\nMean AUC: {np.mean(all_aucs):.4f}")
-
+    mean_auc = np.mean(all_aucs)
     # ---- Final plot formatting ----
-    plt.plot([0, 1], [0, 1], "k--", label="Random (AUC=0.5)")
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title(f"ROC Curves – Mean AUC: {np.mean(all_aucs):.3f}")
-    plt.legend(fontsize=8)
-    plt.grid(True)
+    plt.plot([0, 1], [0, 1], "k--", linewidth=1, label="Random (AUC=0.5)")
+    plt.xlabel("False Positive Rate", fontsize=12)
+    plt.ylabel("True Positive Rate", fontsize=12)
+    plt.title(f"ROC Curves – Mean AUC: {mean_auc:.3f}", fontsize=14, fontweight='bold')
+    plt.legend(fontsize=8, loc='lower right')
+    plt.grid(True, alpha=0.3)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.tight_layout()
 
+    # ---- Save plot (if requested) ----
     if output_file is not None:
-        plt.tight_layout()
-        plt.savefig(output_file, dpi=300)
-        plt.close()
-    else:
-        plt.close()
-
-
-    if output_file is not None:
-        print(f"\nROC curves saved to: {output_file}")
-
+        plt.savefig(output_file, dpi=300, bbox_inches='tight')
     
-    
-    mean_auc = float(np.mean(all_aucs))
-
-    if output_file is not None:
-        plt.tight_layout()
-        plt.savefig(output_file, dpi=300)
-        plt.close()
+    plt.close()
 
     return mean_auc
 
 
-
-
 def calculate_roc_curve(y_true, y_scores):
-    import numpy as np
     """Calculate FPR, TPR, and AUC."""
     
     thresholds = np.unique(y_scores)
@@ -155,3 +140,15 @@ def calculate_roc_curve(y_true, y_scores):
         auc += width * height
     
     return fpr, tpr, auc
+
+if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Plot ROC curves and calculate AUC')
+    parser.add_argument('predictions', help='Predictions TSV file')
+    parser.add_argument('ground_truth', help='Ground truth TSV file')
+    parser.add_argument('-o', '--output', help='Output plot file (PNG)', default=None)
+    
+    args = parser.parse_args()
+    
+    mean_auc = plot_roc_curves(args.predictions, args.ground_truth, args.output)
